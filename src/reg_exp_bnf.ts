@@ -3,14 +3,15 @@ import TSCC from "../lib/tscc.js";
 let grammar: Grammar = {
     userCode: `import {State,Automaton} from './automaton.js'`,
     accept: ($: any[]) => { return $[0]; },
-    tokens: ['(', ')', '[', ']', '*', '|', '-', '^', 'normal_char'],//normal表示没有在前面单独指定的字符
+    tokens: ['(', ')', '\\', '[', ']', '*', '|', '-', '^', 'other_char'],//normal表示没有在前面单独指定的字符
     association: [
         { "nonassoc": ['['] },
         { "nonassoc": ['('] },
         { "left": ['|'] },
         { "left": ['link'] },
         { "left": ['*'] },
-        { "nonassoc": ['normal_char'] },
+        { "nonassoc": ['\\'] },
+        { "nonassoc": ['other_char'] },
         { "nonassoc": ['priority_parallel'] },//优先级必须比'^'、'-'低，用于[]内部
         { "right": ['-'] },
         { "right": ['^'] },
@@ -50,13 +51,28 @@ let grammar: Grammar = {
             "parallel_char:char - char": {}
         },
         {
-            "char:normal_char": {}
+            "char:other_char": {}
         },
         {
             "char:-": {}
         },
         {
             "char:^": {}
+        },
+        {
+            "char:\\ \\": {}
+        },
+        {
+            "char:\\ (": {}
+        },
+        {
+            "char:\\ )": {}
+        },
+        {
+            "char:\\ [": {}
+        },
+        {
+            "char:\\ ]": {}
         }
     ]
 };
