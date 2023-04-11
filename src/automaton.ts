@@ -1,8 +1,13 @@
 import { assert } from './util.js';
 class State {
+    public static StateIndex: number = 0;
+    public index: number;
     public type: 'end' | 'normal' = 'normal';
     public resolver: (() => any)[] | undefined;
     public gotoTable: Map<string, Edge> = new Map();
+    constructor() {
+        this.index = State.StateIndex++;
+    }
 }
 class Edge {
     public s: number;
@@ -107,7 +112,7 @@ class NFA {
     public parallel(other: NFA) {
         let newStart = new State();
         let newEnd = new State();
-        
+
         this.end.type = 'normal';
         other.end.type = 'normal';
         newEnd.type = 'end';
