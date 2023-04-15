@@ -1,12 +1,51 @@
 import { assert } from './util.js';
+function EdgeSort(a: Edge, b: Edge): number {
+    if (a.s != b.s) {
+        return a.s - b.s;
+    } else {
+        return a.e - b.e;
+    }
+}
 class State {
     public static StateIndex: number = 0;
     public index: number;
     public type: 'end' | 'normal' = 'normal';
     public resolver: (() => any)[] | undefined;
-    public gotoTable: Map<string, Edge> = new Map();
+    private _gotoTable: Map<string, Edge> = new Map();//用于记录边表中是否有重复边
+    public gotoTable: Edge[] = [];
     constructor() {
         this.index = State.StateIndex++;
+    }
+    public addEdge(edge: Edge) {
+        if (!this._gotoTable.has(edge.sign())) {
+            this._gotoTable.set(edge.sign(), edge);
+        } else {
+            let _edge = this._gotoTable.get(edge.sign());
+            assert(_edge != undefined);
+            _edge.targetSet = new Set([..._edge.targetSet, ...edge.targetSet]);//合并target
+        }
+        this.gotoTable.push(edge);
+        this.gotoTable.sort(EdgeSort);
+    }
+    public jmp(ch: number): Set<State> {
+        let s = 0;
+        let e = this.gotoTable.length - 1;
+        for (; ;) {
+            if (ch < this.gotoTable[(s + e) / 2].s) {
+                if (e == s) {
+                    throw `找不到合适的区间`;
+                }
+                e = (s + e) / 2;
+            } else if (ch > this.gotoTable[(s + e) / 2].e) {
+                if (e == s) {
+                    throw `找不到合适的区间`;
+                }
+                s = (s + e) / 2;
+            } else {
+                break;
+            }
+        }
+        return this.gotoTable[(s + e) / 2].targetSet;
     }
 }
 class Edge {
@@ -18,7 +57,7 @@ class Edge {
         this.e = option.e;
         this.targetSet = new Set(option.targetSet);
     }
-    public toString() {
+    public sign() {
         if (this.s == -1) {
             return '';
         } else {
@@ -32,13 +71,7 @@ class Edge {
      * @returns intersection:交集,separate各自独立部分
      */
     public static intersect(a: Edge, b: Edge): Edge[] {
-        let arr = [a, b].sort((a, b) => {
-            if (a.s != b.s) {
-                return a.s - b.s;
-            } else {
-                return a.e - b.e;
-            }
-        });
+        let arr = [a, b].sort(EdgeSort);
         [a, b] = arr;
         if (b.s > a.e) {
             return [a, b];
@@ -90,42 +123,45 @@ class Edge {
 class NFA {
     public start: State;
     public end: State;
-    constructor(e: Edge) {
+    constructor(e: Edge, isEnd: boolean = false) {
         this.start = new State();
         this.end = new State();
-        this.end.type = 'end';
+        this.end.type = isEnd ? 'end' : 'normal';
         let targetSet = new Set<State>();
         targetSet.add(this.end);
         e.targetSet.add(this.end);
-        this.start.gotoTable.set(e.toString(), e);
+        this.start.addEdge(e);
     }
-    public link(other: NFA) {
-        if (this.end.gotoTable.has('')) {
-            let edge = this.end.gotoTable.get('');
-            assert(edge != undefined);
-            edge.targetSet.add(other.start);
-        } else {
-            let edge = new Edge({ s: -1, e: -1, targetSet: [other.start] });
-            this.end.gotoTable.set('', edge);
-        }
+    public link(other: NFA, isEnd: boolean = false) {
+        this.end.addEdge(new Edge({ s: -1, e: -1, targetSet: [other.start] }));
+        this.end = other.end;
+        other.end.type = isEnd ? 'end' : 'normal';
     }
-    public parallel(other: NFA) {
+    public parallel(other: NFA, isEnd: boolean = false) {
         let newStart = new State();
         let newEnd = new State();
 
-        this.end.type = 'normal';
-        other.end.type = 'normal';
-        newEnd.type = 'end';
+        newStart.addEdge(new Edge({ s: -1, e: -1, targetSet: [this.start, other.start] }));
 
-        newStart.gotoTable.set('', new Edge({ s: -1, e: -1, targetSet: [this.start, other.start] }));
-        this.end.gotoTable.set('', new Edge({ s: -1, e: -1, targetSet: [newEnd] }));
-        other.end.gotoTable.set('', new Edge({ s: -1, e: -1, targetSet: [newEnd] }));
+        this.end.addEdge(new Edge({ s: -1, e: -1, targetSet: [newEnd] }));
+        other.end.addEdge(new Edge({ s: -1, e: -1, targetSet: [newEnd] }));
+
+        newEnd.type = isEnd ? 'end' : 'normal';
 
         this.start = newStart;
         this.end = newEnd;
     }
-    public run(str: string) {
+    public run(str: string): Set<State> {
+        let now = new Set<State>([this.start]);
+        let target = new Set<State>;
+        for (let ch of str) {
+            for (let state of now) {
+                target = new Set<State>([...state.jmp(ch.charCodeAt(0))]);
+            }
+            now = target;
+        }
+        return target;
     }
 }
-let nfa = new NFA(new Edge({ s: -1, e: -1, targetSet: [] }));
-nfa.run('a');
+let nfa = new NFA(new Edge({ s: 97, e: 97, targetSet: [] }), true);
+console.log(nfa.run('a'));
