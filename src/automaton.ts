@@ -130,12 +130,11 @@ class Edge {
     }
 
     /**
-     * 把一个Edge添加到现有集合中，会修改原数组
-     * @param set 
-     * @param edge 
+     * 合并两个边集，会修改原来的两个数组
+     * @param a 
+     * @param b 
      */
-    public static intersectToSet(set: Edge[], edge: Edge) {
-        set.sort(EdgeSort);
+    public static intersectToSet(a: Edge[], b: Edge[]) {
         throw `unimplement`;
     }
 }
