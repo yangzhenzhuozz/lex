@@ -7,14 +7,14 @@ function EdgeSort(a: Edge, b: Edge): number {
     }
 }
 class State {
-    public static StateIndex: number = 0;
-    public index: number;
+    static _StateIndex = 0;
     public type: 'end' | 'normal' = 'normal';
     public resolver: (() => any)[] | undefined;
     private _gotoTable: Map<string, Edge> = new Map();//用于记录边表中是否有重复边
     public gotoTable: Edge[] = [];
+    public index: number;
     constructor() {
-        this.index = State.StateIndex++;
+        this.index = State._StateIndex++;
     }
     public addEdge(edge: Edge) {
         if (!this._gotoTable.has(edge.sign())) {
@@ -47,6 +47,18 @@ class State {
         }
         return this.gotoTable[(s + e) / 2].targetSet;
     }
+    public epsilon_clouser() {
+        let ret = new Set<State>();
+        ret.add(this);
+        for (let s of ret) {
+            if (s._gotoTable.has('')) {
+                for (let target of s._gotoTable.get('')!.targetSet) {
+                    ret.add(target);
+                }
+            }
+        }
+        return ret;
+    }
 }
 class Edge {
     public s: number;
@@ -70,7 +82,7 @@ class Edge {
      * @param b 区间b
      * @returns intersection:交集,separate各自独立部分
      */
-    public static intersect(a: Edge, b: Edge): Edge[] {
+    public intersect(a: Edge, b: Edge): Edge[] {
         let arr = [a, b].sort(EdgeSort);
         [a, b] = arr;
         if (b.s > a.e) {
@@ -115,6 +127,16 @@ class Edge {
                 }
             }
         }
+    }
+
+    /**
+     * 把一个Edge添加到现有集合中，会修改原数组
+     * @param set 
+     * @param edge 
+     */
+    public static intersectToSet(set: Edge[], edge: Edge) {
+        set.sort(EdgeSort);
+        throw `unimplement`;
     }
 }
 /**
@@ -161,6 +183,36 @@ class NFA {
             now = target;
         }
         return target;
+    }
+}
+/**
+ * deterministic finite automaton
+ */
+class DFA {
+    public start: State;
+    constructor(nfa: NFA) {
+        let stateFamily: Map<string, number> = new Map();
+        let startSet = nfa.start.epsilon_clouser();
+        stateFamily.set(this.stateSetSign(startSet), 0);
+        this.start = new State();
+        let edges: Edge[] = [];//时间复杂度是n^2，如果边太多，耗时会很长
+        for (let state of startSet) {
+            for (let nedge of state.gotoTable) {
+                if (edges.length > 0) {
+                    for (let edge of edges) {
+
+                    }
+                }
+            }
+        }
+    }
+    private stateSetSign(s: Set<State>): string {
+        let arr = [...s];
+        arr.sort((a, b) => a.index - b.index);
+        return arr.toString();
+    }
+    public run() {
+
     }
 }
 let nfa = new NFA(new Edge({ s: 97, e: 97, targetSet: [] }), true);
