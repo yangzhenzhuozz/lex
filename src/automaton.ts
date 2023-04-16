@@ -135,6 +135,8 @@ class Edge {
      * @param b 
      */
     public static intersectToSet(a: Edge[], b: Edge[]) {
+        a.sort(EdgeSort);
+        b.sort(EdgeSort);
         throw `unimplement`;
     }
 }
