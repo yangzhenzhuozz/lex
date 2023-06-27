@@ -1,80 +1,120 @@
-import { Grammar } from "../lib/tscc.js";
-import TSCC from "../lib/tscc.js";
+import fs from "fs";
+import { Grammar } from "./tscc.js";
+import TSCC from "./tscc.js";
+import { Edge } from "./edge.js";
+import { State, FiniteAutomaton } from "./automaton.js";
 let grammar: Grammar = {
-    userCode: `import {State,Automaton} from './automaton.js'`,
+    userCode: `
+import { Edge } from "./edge.js";
+import { State, FiniteAutomaton } from "./automaton.js";
+`,
     accept: ($: any[]) => { return $[0]; },
-    tokens: ['(', ')', '\\', '[', ']', '*', '|', '-', '^', 'other_char'],//normal表示没有在前面单独指定的字符
+    tokens: ['(', ')', '[', ']', '*', '.', '-', '|', '^', 'char'],//normal表示没有在前面单独指定的字符
     association: [
+        { "left": ['*'] },
         { "nonassoc": ['['] },
         { "nonassoc": ['('] },
         { "left": ['|'] },
-        { "left": ['link'] },
-        { "left": ['*'] },
-        { "nonassoc": ['\\'] },
-        { "nonassoc": ['other_char'] },
-        { "nonassoc": ['priority_parallel'] },//优先级必须比'^'、'-'低，用于[]内部
-        { "right": ['-'] },
-        { "right": ['^'] },
+        { "left": ['link'] },//link优先级高于union
+        { "nonassoc": ['^'] },
+        { "nonassoc": ['-'] },
+        { "nonassoc": ['.'] },
+        { "nonassoc": ['char'] },
     ],
     BNF: [
         {
-            "exp:( exp )": {}
+            "exp:( exp )": {}//group
         },
         {
-            "exp:exp | exp": {}
+            "exp:exp exp": { priority: "link" }//link
         },
         {
-            "exp:exp exp": { priority: "link" }
+            "exp:exp | exp": {}//union
         },
         {
-            "exp:exp *": {}
+            "exp:exp *": {}//closure
         },
         {
-            "exp:char": {}
+            "exp:element": {}
         },
         {
-            "exp:[ parallel_list ]": {}
+            "element:char": {}
         },
         {
-            "exp:[ ^ parallel_list ]": {}
+            "element:.": {}
         },
         {
-            "parallel_list:parallel_char": {}
+            "element:set": {}
         },
         {
-            "parallel_list:parallel_char char": {}
+            //positive set
+            "set:[ set_items ]": {}
         },
         {
-            "parallel_char:char": { priority: 'priority_parallel'/* 解决 [char - char]的二义性 */ }
+            //negative set
+            "set:[ ^ set_items ]": {
+                //有点麻烦,需要把 c-f拆分成两个部分
+            }
         },
         {
-            "parallel_char:char - char": {}
+            //这里需要用union
+            "set_items:set_items set_item": {
+                action: function ($, s): FiniteAutomaton {
+                    let A = $[0] as FiniteAutomaton;
+                    let B = $[1] as FiniteAutomaton;
+                    let start = new State();
+                    let end = new State();
+                    let tmpEdge: Edge;
+
+                    tmpEdge = new Edge(0, 0, A.start);//连接到A
+                    tmpEdge.isEpsilon = true;
+                    start.edges.push(tmpEdge);
+
+                    tmpEdge = new Edge(0, 0, B.start);//连接到B
+                    tmpEdge.isEpsilon = true;
+                    start.edges.push(tmpEdge);
+
+                    tmpEdge = new Edge(0, 0, end);//A连接到end
+                    tmpEdge.isEpsilon = true;
+                    A.end.edges.push(tmpEdge);
+
+                    tmpEdge = new Edge(0, 0, end);//B连接到end
+                    tmpEdge.isEpsilon = true;
+                    B.end.edges.push(tmpEdge);
+
+                    return new FiniteAutomaton(start, end);
+                }
+            }
         },
         {
-            "char:other_char": {}
+            "set_items:set_item": {
+                action: function ($, s): FiniteAutomaton {
+                    return $[0] as FiniteAutomaton;
+                }
+            }
         },
         {
-            "char:-": {}
+            "set_item:char": {
+                action: function ($, s): FiniteAutomaton {
+                    let start = new State();
+                    let end = new State();
+                    start.edges.push(new Edge(($[0] as string).charCodeAt(0), ($[0] as string).charCodeAt(0), end));
+                    return new FiniteAutomaton(start, end);
+                }
+            }
         },
         {
-            "char:^": {}
-        },
-        {
-            "char:\\ \\": {}
-        },
-        {
-            "char:\\ (": {}
-        },
-        {
-            "char:\\ )": {}
-        },
-        {
-            "char:\\ [": {}
-        },
-        {
-            "char:\\ ]": {}
+            "set_item:char - char": {
+                action: function ($, s): FiniteAutomaton {
+                    let start = new State();
+                    let end = new State();
+                    start.edges.push(new Edge(($[0] as string).charCodeAt(0), ($[1] as string).charCodeAt(0), end));
+                    return new FiniteAutomaton(start, end);
+                }
+            }
         }
     ]
 };
 let tscc = new TSCC(grammar, { language: "zh-cn", debug: false });
 let str = tscc.generate();//构造编译器代码
+fs.writeFileSync('./src/parser.ts', str!);
