@@ -35,61 +35,91 @@ import { State, FiniteAutomaton } from "./automaton.js";
             "exp:exp *": {}//closure
         },
         {
-            "exp:element": {}
-        },
-        {
-            "element:char": {}
-        },
-        {
-            "element:.": {}
-        },
-        {
-            "element:set": {}
-        },
-        {
-            //positive set
-            "set:[ set_items ]": {}
-        },
-        {
-            //negative set
-            "set:[ ^ set_items ]": {
-                //有点麻烦,需要把 c-f拆分成两个部分
+            "exp:element": {
+                action: function ($, s): FiniteAutomaton {
+                    return $[0] as FiniteAutomaton;
+                }
             }
         },
         {
-            //这里需要用union
-            "set_items:set_items set_item": {
+            "element:char": {
                 action: function ($, s): FiniteAutomaton {
-                    let A = $[0] as FiniteAutomaton;
-                    let B = $[1] as FiniteAutomaton;
                     let start = new State();
                     let end = new State();
-                    let tmpEdge: Edge;
-
-                    tmpEdge = new Edge(0, 0, A.start);//连接到A
-                    tmpEdge.isEpsilon = true;
-                    start.edges.push(tmpEdge);
-
-                    tmpEdge = new Edge(0, 0, B.start);//连接到B
-                    tmpEdge.isEpsilon = true;
-                    start.edges.push(tmpEdge);
-
-                    tmpEdge = new Edge(0, 0, end);//A连接到end
-                    tmpEdge.isEpsilon = true;
-                    A.end.edges.push(tmpEdge);
-
-                    tmpEdge = new Edge(0, 0, end);//B连接到end
-                    tmpEdge.isEpsilon = true;
-                    B.end.edges.push(tmpEdge);
-
+                    let ch = ($[0] as string).charCodeAt(0);
+                    let edge = new Edge(ch, ch);
+                    edge.target.push(end);
+                    start.edges.push(edge);
                     return new FiniteAutomaton(start, end);
                 }
             }
         },
         {
-            "set_items:set_item": {
+            "element:.": {
+                action: function ($, s): FiniteAutomaton {
+                    let start = new State();
+                    let end = new State();
+                    let edge = new Edge(-1, -1);
+                    edge.isAny = true;
+                    edge.target.push(end);
+                    start.edges.push(edge);
+                    return new FiniteAutomaton(start, end);
+                }
+            }
+        },
+        {
+            "element:set": {
                 action: function ($, s): FiniteAutomaton {
                     return $[0] as FiniteAutomaton;
+                }
+            }
+        },
+        {
+            //positive set
+            "set:[ set_items ]": {
+                action: function ($, s): FiniteAutomaton {
+                    let set = $[1] as FiniteAutomaton[];
+                    let start = new State();
+                    let end = new State();
+                    let ret = new FiniteAutomaton(start, end);
+                    for (let nfa of set) {
+                        let s_edge = new Edge(-1, -1);
+                        s_edge.isEpsilon = true;
+                        s_edge.target.push(nfa.start);
+                        start.edges.push(s_edge);
+
+                        let e_edge = new Edge(-1, -1);
+                        e_edge.isEpsilon = true;
+                        e_edge.target.push(end);
+                        nfa.end.edges.push(e_edge);
+                    }
+                    return ret;
+                }
+            }
+        },
+        {
+            //negative set
+            "set:[ ^ set_items ]": {
+                //有点麻烦,需要把 c-f拆分成两个部分
+                action:function($,s){
+                    throw `unspprot negative set now`;
+                }
+            }
+        },
+        {
+            //这里需要用union
+            "set_items:set_items set_item": {
+                action: function ($, s): FiniteAutomaton[] {
+                    let A = $[0] as FiniteAutomaton;
+                    let B = $[1] as FiniteAutomaton;
+                    return [A, B];
+                }
+            }
+        },
+        {
+            "set_items:set_item": {
+                action: function ($, s): FiniteAutomaton[] {
+                    return [$[0] as FiniteAutomaton];
                 }
             }
         },
