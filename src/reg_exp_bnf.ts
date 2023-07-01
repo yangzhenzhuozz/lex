@@ -11,11 +11,11 @@ import { State, FiniteAutomaton } from "./automaton.js";
     accept: ($: any[]) => { return $[0]; },
     tokens: ['(', ')', '[', ']', '*', '.', '-', '|', '^', 'char'],//normal表示没有在前面单独指定的字符
     association: [
-        { "left": ['*'] },
         { "nonassoc": ['['] },
         { "nonassoc": ['('] },
         { "left": ['|'] },
         { "left": ['link'] },//link优先级高于union
+        { "left": ['*'] },
         { "nonassoc": ['^'] },
         { "nonassoc": ['-'] },
         { "nonassoc": ['.'] },
@@ -23,16 +23,78 @@ import { State, FiniteAutomaton } from "./automaton.js";
     ],
     BNF: [
         {
-            "exp:( exp )": {}//group
+            "exp:( exp )": {
+                action: function ($, s): FiniteAutomaton {
+                    return $[0] as FiniteAutomaton;
+                }
+            }//group
         },
         {
-            "exp:exp exp": { priority: "link" }//link
+            "exp:exp exp": {
+                priority: "link",
+                action: function ($, s): FiniteAutomaton {
+                    //link
+                    let exp1 = $[0] as FiniteAutomaton;
+                    let exp2 = $[1] as FiniteAutomaton;
+                    let start = exp1.start;
+                    let end = exp2.end;
+                    let tmpEdge = new Edge(-1, -1, exp2.start);
+                    tmpEdge.isEpsilon = true;
+                    exp1.end.edges.push(tmpEdge);
+                    return new FiniteAutomaton(start, end);
+                }
+            }//link
         },
         {
-            "exp:exp | exp": {}//union
+            "exp:exp | exp": {
+                action: function ($, s): FiniteAutomaton {
+                    //union
+                    let start = new State();
+                    let end = new State();
+                    let exp1 = $[0] as FiniteAutomaton;
+                    let exp2 = $[2] as FiniteAutomaton;
+                    let tmpEdge: Edge;
+                    tmpEdge = new Edge(-1, -1, exp1.start);
+                    tmpEdge.isEpsilon = true;
+                    start.edges.push(tmpEdge);
+                    tmpEdge = new Edge(-1, -1, exp2.start);
+                    tmpEdge.isEpsilon = true;
+                    start.edges.push(tmpEdge);
+
+                    tmpEdge = new Edge(-1, -1, end);
+                    tmpEdge.isEpsilon = true;
+                    exp1.end.edges.push(tmpEdge);
+                    tmpEdge = new Edge(-1, -1, end);
+                    tmpEdge.isEpsilon = true;
+                    exp2.end.edges.push(tmpEdge);
+                    return new FiniteAutomaton(start, end);
+                }
+            }//union
         },
         {
-            "exp:exp *": {}//closure
+            "exp:exp *": {
+                //闭包
+                action: function ($, s): FiniteAutomaton {
+                    //closure
+                    let exp = $[0] as FiniteAutomaton;
+                    let start = new State();
+                    let end = new State();
+                    let tmpEdge: Edge;
+                    tmpEdge = new Edge(-1, -1, exp.start);
+                    tmpEdge.isEpsilon = true;
+                    start.edges.push(tmpEdge);
+                    tmpEdge = new Edge(-1, -1, end);
+                    tmpEdge.isEpsilon = true;
+                    start.edges.push(tmpEdge);
+                    tmpEdge = new Edge(-1, -1, end);
+                    tmpEdge.isEpsilon = true;
+                    exp.end.edges.push(tmpEdge);
+                    tmpEdge = new Edge(-1, -1, exp.start);
+                    tmpEdge.isEpsilon = true;
+                    exp.end.edges.push(tmpEdge);
+                    return new FiniteAutomaton(start, end);
+                }
+            }//closure
         },
         {
             "exp:element": {
@@ -47,8 +109,7 @@ import { State, FiniteAutomaton } from "./automaton.js";
                     let start = new State();
                     let end = new State();
                     let ch = ($[0] as string).charCodeAt(0);
-                    let edge = new Edge(ch, ch);
-                    edge.target.push(end);
+                    let edge = new Edge(ch, ch, end);
                     start.edges.push(edge);
                     return new FiniteAutomaton(start, end);
                 }
@@ -59,9 +120,8 @@ import { State, FiniteAutomaton } from "./automaton.js";
                 action: function ($, s): FiniteAutomaton {
                     let start = new State();
                     let end = new State();
-                    let edge = new Edge(-1, -1);
+                    let edge = new Edge(-1, -1, end);
                     edge.isAny = true;
-                    edge.target.push(end);
                     start.edges.push(edge);
                     return new FiniteAutomaton(start, end);
                 }
@@ -83,14 +143,12 @@ import { State, FiniteAutomaton } from "./automaton.js";
                     let end = new State();
                     let ret = new FiniteAutomaton(start, end);
                     for (let nfa of set) {
-                        let s_edge = new Edge(-1, -1);
+                        let s_edge = new Edge(-1, -1, nfa.start);
                         s_edge.isEpsilon = true;
-                        s_edge.target.push(nfa.start);
                         start.edges.push(s_edge);
 
-                        let e_edge = new Edge(-1, -1);
+                        let e_edge = new Edge(-1, -1, end);
                         e_edge.isEpsilon = true;
-                        e_edge.target.push(end);
                         nfa.end.edges.push(e_edge);
                     }
                     return ret;
@@ -101,7 +159,7 @@ import { State, FiniteAutomaton } from "./automaton.js";
             //negative set
             "set:[ ^ set_items ]": {
                 //有点麻烦,需要把 c-f拆分成两个部分
-                action:function($,s){
+                action: function ($, s) {
                     throw `unspprot negative set now`;
                 }
             }
@@ -110,9 +168,9 @@ import { State, FiniteAutomaton } from "./automaton.js";
             //这里需要用union
             "set_items:set_items set_item": {
                 action: function ($, s): FiniteAutomaton[] {
-                    let A = $[0] as FiniteAutomaton;
+                    let A = $[0] as FiniteAutomaton[];
                     let B = $[1] as FiniteAutomaton;
-                    return [A, B];
+                    return [...A, B];
                 }
             }
         },
@@ -138,7 +196,7 @@ import { State, FiniteAutomaton } from "./automaton.js";
                 action: function ($, s): FiniteAutomaton {
                     let start = new State();
                     let end = new State();
-                    start.edges.push(new Edge(($[0] as string).charCodeAt(0), ($[1] as string).charCodeAt(0), end));
+                    start.edges.push(new Edge(($[0] as string).charCodeAt(0), ($[2] as string).charCodeAt(0), end));
                     return new FiniteAutomaton(start, end);
                 }
             }
