@@ -39,7 +39,6 @@ import { State, FiniteAutomaton } from "./automaton.js";
                     let start = exp1.start;
                     let end = exp2.end;
                     let tmpEdge = new Edge(-1, -1, exp2.start);
-                    tmpEdge.isEpsilon = true;
                     exp1.end.edges.push(tmpEdge);
                     return new FiniteAutomaton(start, end);
                 }
@@ -55,17 +54,13 @@ import { State, FiniteAutomaton } from "./automaton.js";
                     let exp2 = $[2] as FiniteAutomaton;
                     let tmpEdge: Edge;
                     tmpEdge = new Edge(-1, -1, exp1.start);
-                    tmpEdge.isEpsilon = true;
                     start.edges.push(tmpEdge);
                     tmpEdge = new Edge(-1, -1, exp2.start);
-                    tmpEdge.isEpsilon = true;
                     start.edges.push(tmpEdge);
 
                     tmpEdge = new Edge(-1, -1, end);
-                    tmpEdge.isEpsilon = true;
                     exp1.end.edges.push(tmpEdge);
                     tmpEdge = new Edge(-1, -1, end);
-                    tmpEdge.isEpsilon = true;
                     exp2.end.edges.push(tmpEdge);
                     return new FiniteAutomaton(start, end);
                 }
@@ -81,16 +76,12 @@ import { State, FiniteAutomaton } from "./automaton.js";
                     let end = new State();
                     let tmpEdge: Edge;
                     tmpEdge = new Edge(-1, -1, exp.start);
-                    tmpEdge.isEpsilon = true;
                     start.edges.push(tmpEdge);
                     tmpEdge = new Edge(-1, -1, end);
-                    tmpEdge.isEpsilon = true;
                     start.edges.push(tmpEdge);
                     tmpEdge = new Edge(-1, -1, end);
-                    tmpEdge.isEpsilon = true;
                     exp.end.edges.push(tmpEdge);
                     tmpEdge = new Edge(-1, -1, exp.start);
-                    tmpEdge.isEpsilon = true;
                     exp.end.edges.push(tmpEdge);
                     return new FiniteAutomaton(start, end);
                 }
@@ -120,8 +111,7 @@ import { State, FiniteAutomaton } from "./automaton.js";
                 action: function ($, s): FiniteAutomaton {
                     let start = new State();
                     let end = new State();
-                    let edge = new Edge(-1, -1, end);
-                    edge.isAny = true;
+                    let edge = new Edge(0, Number.MAX_SAFE_INTEGER, end);
                     start.edges.push(edge);
                     return new FiniteAutomaton(start, end);
                 }
@@ -144,11 +134,9 @@ import { State, FiniteAutomaton } from "./automaton.js";
                     let ret = new FiniteAutomaton(start, end);
                     for (let nfa of set) {
                         let s_edge = new Edge(-1, -1, nfa.start);
-                        s_edge.isEpsilon = true;
                         start.edges.push(s_edge);
 
                         let e_edge = new Edge(-1, -1, end);
-                        e_edge.isEpsilon = true;
                         nfa.end.edges.push(e_edge);
                     }
                     return ret;

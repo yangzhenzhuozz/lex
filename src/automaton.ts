@@ -14,7 +14,7 @@ export class FiniteAutomaton {
         this.start = s;
         this.end = e;
     }
-    public  test(str: string) {
+    public test(str: string) {
         let nowStateSet: Set<State> = new Set([this.start]);
         this.closure(nowStateSet);
         for (let ch of str) {
@@ -22,11 +22,7 @@ export class FiniteAutomaton {
             for (let state of nowStateSet) {
                 for (let edge of state.edges) {
                     let charCode = ch.charCodeAt(0);
-                    if (edge.isAny) {
-                        for (let target of edge.target) {
-                            nextStates.add(target);
-                        }
-                    } else if (charCode >= edge.s && charCode <= edge.e) {
+                    if (charCode >= edge.s && charCode <= edge.e) {
                         for (let target of edge.target) {
                             nextStates.add(target);
                         }
@@ -35,14 +31,17 @@ export class FiniteAutomaton {
             }
             nowStateSet = nextStates;
             this.closure(nowStateSet);
+            if (nowStateSet.size == 0) {
+                return false;
+            }
         }
-        console.log(nowStateSet.has(this.end));
+        return nowStateSet.has(this.end);
 
     }
     public closure(states: Set<State>) {
         for (let state of states) {
             for (let edge of state.edges) {
-                if (edge.isEpsilon) {
+                if (edge.s == -1) {
                     for (let t of edge.target) {
                         if (!states.has(t)) {
                             states.add(t);
