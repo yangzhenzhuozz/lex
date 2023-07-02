@@ -32,29 +32,38 @@ export class EdgeTools {
         return ret;
     }
     //把一个边合并到已经切分且排序好的集合中
-    private static mix(edges: Edge[], e: Edge, result: Edge[]) {
+    private static mix(edges: Edge[][], edge: Edge, result: Edge[]) {
+        //需要重新设计算法
+        
         if (edges.length == 0) {
-            edges.push(e);
+            edges.push([edge]);
         } else {
             let first = edges.shift()!;
-            let loc = this.locationTest(first, e);
+            let loc = this.locationTest(first, edge);
             switch (loc) {
                 case 'left':
-                    result.push(e);
+                    result.push(edge);
                     result.push(first);
                     break;
                 case 'right':
                     result.push(first);
-                    result.push(e);
+                    result.push(edge);
                 default://cross
+                    if (first.e < edge.e) {//e求交之后还剩余一部分right,需要把right继续混合
 
+                    } else if (first.s > edge.s) {//求交之后剩余一部分left，需要向前求交
+
+                    }
                     break;
             }
         }
     }
     //要求a,b必须有交集，否则计算会出错
-    public static corss(a: Edge, b: Edge): Edge[] {
-        let ret: Edge[];
+    public static corss(a: Edge, b: Edge): {
+        left?: Edge,
+        common: Edge,
+        right?: Edge
+    } {
         let arr = [a, b].sort((a, b) => {
             if (a.s != b.s) {
                 return a.s - b.s;
@@ -64,16 +73,15 @@ export class EdgeTools {
         });
         a = arr[0];
         b = arr[1];
+        let left: Edge | undefined;
         let common: Edge;
-        let left: Edge;
-        let right: Edge;
+        let right: Edge | undefined;
         if (a.s == b.s) {//这种返回值小于3
             if (a.e == b.e) {//返回值只有一个
                 common = a.clone();
                 for (let t of b.target) {
                     common.target.push(t);
                 }
-                ret = [common];
             } else if (a.e < b.e) {
                 common = a.clone();
                 for (let t of b.target) {
@@ -83,7 +91,6 @@ export class EdgeTools {
                 for (let t of b.target) {
                     right.target.push(t);
                 }
-                ret = [common, right];
             } else {// if (a.e > b.e) 
                 common = b.clone();
                 for (let t of a.target) {
@@ -93,7 +100,6 @@ export class EdgeTools {
                 for (let t of a.target) {
                     right.target.push(t);
                 }
-                ret = [common, right];
             }
         } else {
             if (a.e == b.e) {
@@ -105,7 +111,6 @@ export class EdgeTools {
                 for (let t of a.target) {
                     common.target.push(t);
                 }
-                ret = [left, common];
             } else if (a.e < b.e) {
                 left = new Edge(a.s, b.s - 1);
                 for (let t of a.target) {
@@ -122,7 +127,6 @@ export class EdgeTools {
                 for (let t of b.target) {
                     right.target.push(t);
                 }
-                ret = [left, common, right];
             } else {// if (a.e > b.e) 
                 left = new Edge(a.s, b.s - 1);
                 for (let t of a.target) {
@@ -136,10 +140,9 @@ export class EdgeTools {
                 for (let t of a.target) {
                     right.target.push(t);
                 }
-                ret = [left, common, right];
             }
         }
-        return ret;
+        return { left, common, right };
     }
     //位置判断
     private static locationTest(ref: Edge, test: Edge): 'left' | 'right' | 'cross' {
