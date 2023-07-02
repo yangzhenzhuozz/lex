@@ -2,7 +2,7 @@ import { Lex, YYTOKEN } from './parser.js'
 export class LexerForREG implements Lex {
     private source: string;
     private char_index;
-    private keyWord = new Set<string>(['(', ')', '|', '*', '.', '[', ']','-']);
+    private keyWord = new Set<string>(['(', ')', '|', '*', '.', '[', ']', '-', '^']);
     constructor(src: string) {
         this.char_index = 0;
         this.source = src;
@@ -32,10 +32,10 @@ export class LexerForREG implements Lex {
                 throw `反斜杠'\\'后面没有任何字符`;
             }
             ch = this.source.charAt(this.char_index++);//取后面一个字符
-            switch(ch){
-                case 'r':ch='\r';break;
-                case 'n':ch='\n';break;
-                case 't':ch='\t';break;
+            switch (ch) {
+                case 'r': ch = '\r'; break;
+                case 'n': ch = '\n'; break;
+                case 't': ch = '\t'; break;
             }
             return {
                 type: "char",

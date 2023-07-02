@@ -1,11 +1,11 @@
 import fs from "fs";
 import { Grammar } from "./tscc.js";
 import TSCC from "./tscc.js";
-import { Edge } from "./edge.js";
+import { Edge, EdgeTools } from "./edge.js";
 import { State, FiniteAutomaton } from "./automaton.js";
 let grammar: Grammar = {
     userCode: `
-import { Edge } from "./edge.js";
+import { Edge, EdgeTools } from "./edge.js";
 import { State, FiniteAutomaton } from "./automaton.js";
 `,
     accept: ($: any[]) => { return $[0]; },
@@ -128,6 +128,7 @@ import { State, FiniteAutomaton } from "./automaton.js";
             //positive set
             "set:[ set_items ]": {
                 action: function ($, s): FiniteAutomaton {
+                    //positive set
                     let set = $[1] as FiniteAutomaton[];
                     let start = new State();
                     let end = new State();
@@ -148,12 +149,25 @@ import { State, FiniteAutomaton } from "./automaton.js";
             "set:[ ^ set_items ]": {
                 //有点麻烦,需要把 c-f拆分成两个部分
                 action: function ($, s) {
-                    throw `unspprot negative set now`;
+                    //negative set
+                    let set = $[2] as FiniteAutomaton[];
+                    let start = new State();
+                    let end = new State();
+                    let ret = new FiniteAutomaton(start, end);
+                    let edges: Edge[] = [];
+                    for (let nfa of set) {
+                        edges.push(nfa.start.edges[0]);//这里可以保证只有一条边
+                    }
+                    let reverseEdges = EdgeTools.reverse(edges);
+                    for (let e of reverseEdges) {
+                        e.target.push(end);
+                        start.edges.push(e);
+                    }
+                    return ret;
                 }
             }
         },
         {
-            //这里需要用union
             "set_items:set_items set_item": {
                 action: function ($, s): FiniteAutomaton[] {
                     let A = $[0] as FiniteAutomaton[];
