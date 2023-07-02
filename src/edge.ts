@@ -32,38 +32,58 @@ export class EdgeTools {
         return ret;
     }
     //把一个边合并到已经切分且排序好的集合中
-    private static mix(edges: Edge[][], edge: Edge, result: Edge[]) {
+    private static mix(edges: Edge[], index: number, edge: Edge) {
         //需要重新设计算法
-        
+        //可以把edge设计成一个队列，每求交一次取一次，如果有剩余内容，把剩下的退回给队列，这样实现好像要简单一些
+
         if (edges.length == 0) {
-            edges.push([edge]);
+            edges.push(edge);
         } else {
             let first = edges.shift()!;
             let loc = this.locationTest(first, edge);
             switch (loc) {
                 case 'left':
-                    result.push(edge);
-                    result.push(first);
+                    if (index == 0) {
+                        edges.unshift(edge);
+                    } else {
+                        this.mix(edges, index - 1, edge);
+                    }
                     break;
                 case 'right':
-                    result.push(first);
-                    result.push(edge);
+                    if (index == edges.length - 1) {
+                        edges.push(edge);
+                    } else {
+                        this.mix(edges, index + 1, edge);
+                    }
                 default://cross
-                    if (first.e < edge.e) {//e求交之后还剩余一部分right,需要把right继续混合
-
-                    } else if (first.s > edge.s) {//求交之后剩余一部分left，需要向前求交
-
+                    //需要根据条件往数组中间插入若干值(好像没有完美的数据结构同时完成随机插入和随机取数)
+                    let crossProduct = this.corss(first, edge);
+                    let leftSurplus = false;
+                    let rightSurplus = false;
+                    if (first.e < edge.e) {//求交之后还剩余一部分right,需要把right继续混合
+                        leftSurplus = true;
+                    }
+                    if (first.s > edge.s) {//求交之后剩余一部分left，需要向前继续混合
+                        rightSurplus = true;
+                    }
+                    if (!leftSurplus && !rightSurplus) {
+                        edges.splice(index, 1, ...crossProduct);//移除原来的元素，并且把交集结果放到原来的位置
+                    } else if (!leftSurplus && rightSurplus) {
+                        edges.splice(index, 1, ...crossProduct.slice(0, crossProduct.length - 1));//移除原来的元素，并且把交集结果放到原来的位置
+                        this.mix(edges, index + crossProduct.length - 1, crossProduct[crossProduct.length - 1]);//把余下的内容向后求交
+                    } else if (leftSurplus && !rightSurplus) {
+                        edges.splice(index, 1, ...crossProduct.slice(1, crossProduct.length));//移除原来的元素，并且把交集结果放到原来的位置
+                        this.mix(edges, index - 1, crossProduct[0]);//把余下的内容向前求交
+                    } else if (leftSurplus && rightSurplus) {
+                        //这种前后都有的情况需要好好想一下index
                     }
                     break;
             }
         }
     }
     //要求a,b必须有交集，否则计算会出错
-    public static corss(a: Edge, b: Edge): {
-        left?: Edge,
-        common: Edge,
-        right?: Edge
-    } {
+    public static corss(a: Edge, b: Edge): Edge[] {
+        let ret: Edge[];
         let arr = [a, b].sort((a, b) => {
             if (a.s != b.s) {
                 return a.s - b.s;
@@ -73,15 +93,16 @@ export class EdgeTools {
         });
         a = arr[0];
         b = arr[1];
-        let left: Edge | undefined;
         let common: Edge;
-        let right: Edge | undefined;
+        let left: Edge;
+        let right: Edge;
         if (a.s == b.s) {//这种返回值小于3
             if (a.e == b.e) {//返回值只有一个
                 common = a.clone();
                 for (let t of b.target) {
                     common.target.push(t);
                 }
+                ret = [common];
             } else if (a.e < b.e) {
                 common = a.clone();
                 for (let t of b.target) {
@@ -91,6 +112,7 @@ export class EdgeTools {
                 for (let t of b.target) {
                     right.target.push(t);
                 }
+                ret = [common, right];
             } else {// if (a.e > b.e) 
                 common = b.clone();
                 for (let t of a.target) {
@@ -100,6 +122,7 @@ export class EdgeTools {
                 for (let t of a.target) {
                     right.target.push(t);
                 }
+                ret = [common, right];
             }
         } else {
             if (a.e == b.e) {
@@ -111,6 +134,7 @@ export class EdgeTools {
                 for (let t of a.target) {
                     common.target.push(t);
                 }
+                ret = [left, common];
             } else if (a.e < b.e) {
                 left = new Edge(a.s, b.s - 1);
                 for (let t of a.target) {
@@ -127,6 +151,7 @@ export class EdgeTools {
                 for (let t of b.target) {
                     right.target.push(t);
                 }
+                ret = [left, common, right];
             } else {// if (a.e > b.e) 
                 left = new Edge(a.s, b.s - 1);
                 for (let t of a.target) {
@@ -140,9 +165,10 @@ export class EdgeTools {
                 for (let t of a.target) {
                     right.target.push(t);
                 }
+                ret = [left, common, right];
             }
         }
-        return { left, common, right };
+        return ret;
     }
     //位置判断
     private static locationTest(ref: Edge, test: Edge): 'left' | 'right' | 'cross' {
