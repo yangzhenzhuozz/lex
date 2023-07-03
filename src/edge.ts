@@ -1,4 +1,5 @@
 import { State } from "./automaton";
+import { assert } from "./util";
 export class Edge {
     public s: number;
     public e: number;
@@ -13,10 +14,12 @@ export class Edge {
             this.target.push(t);
         }
     }
-    public clone(): Edge {
+    public clone(reserveTarget = true): Edge {
         let ret = new Edge(this.s, this.e);
-        for (let t of this.target) {
-            ret.target.push(t);
+        if (reserveTarget) {
+            for (let t of this.target) {
+                ret.target.push(t);
+            }
         }
         return ret;
     }
@@ -25,64 +28,68 @@ export class Edge {
     }
 }
 export class EdgeTools {
-    //把边拆分得到一个新集合(保留原来的target)
-    public static separate(edges: Edge[]): Edge[] {
-        let ret: Edge[] = [];
-
-        return ret;
-    }
-    //把一个边合并到已经切分且排序好的集合中
-    private static mix(edges: Edge[], index: number, edge: Edge) {
-        //需要重新设计算法
-        //可以把edge设计成一个队列，每求交一次取一次，如果有剩余内容，把剩下的退回给队列，这样实现好像要简单一些
-
+    /**
+     * 把一个边合并到已经切分且排序好的集合中
+     * 用队列性能更好，因为不需要随机访问,不知道js的数组有没有这种特性
+     * @param separated 已经切分好的序列
+     * @param edges 待添加的序列
+     * @returns 
+     */
+    public static mix(separated: Edge[], edges: Edge[]) {
         if (edges.length == 0) {
-            edges.push(edge);
-        } else {
-            let first = edges.shift()!;
-            let loc = this.locationTest(first, edge);
-            switch (loc) {
-                case 'left':
-                    if (index == 0) {
-                        edges.unshift(edge);
-                    } else {
-                        this.mix(edges, index - 1, edge);
+            return;
+        }
+        for (; edges.length != 0;) {
+            let edge = edges.shift()!;
+            if (separated.length == 0) {
+                separated.push(edge);
+            }
+            else {
+                if (this.locationTest(separated[0], edge) == 'left') {
+                    //在第一个的左侧，直接在最前面插入
+                    separated.unshift(edge);
+                } else if (this.locationTest(separated[separated.length - 1], edge) == 'right') {
+                    //在最后一个的左侧，直接在最后面插入
+                    separated.push(edge);
+                } else {
+                    for (let i = 0; i < separated.length; i++) {
+                        let reference = separated[i];
+                        let loc = this.locationTest(reference, edge);
+                        if (loc == 'left') {
+                            //在当前节点的左侧，可以安全插入
+                            separated.splice(i, 0, edge);
+                            break;
+                        } else if (loc == 'cross') {
+                            let crossPruduct = this.mix2Edge(reference, edge);
+                            let residueLeft = reference.s > edge.s;//求交之后有剩余左侧
+                            let residueRight = reference.e < edge.e;//求交之后有剩余右侧
+                            if (!residueLeft && !residueRight) {
+                                separated.splice(i, 1, ...crossPruduct);
+                            } else if (!residueLeft && residueRight) {
+                                separated.splice(i, 1, ...crossPruduct.slice(0, crossPruduct.length - 1));
+                                edges.unshift(crossPruduct[crossPruduct.length - 1]);
+                            } else if (residueLeft && !residueRight) {
+                                separated.splice(i, 1, ...crossPruduct.slice(1, crossPruduct.length));
+                                edges.unshift(crossPruduct[0]);
+                            } else {
+                                separated.splice(i, 1, ...crossPruduct.slice(1, crossPruduct.length - 1));
+                                edges.unshift(crossPruduct[0]);
+                                edges.unshift(crossPruduct[crossPruduct.length - 1]);
+                            }
+                            break;
+                        } else {
+                            //在右侧则不用管，等待下一个节点的判断
+                        }
                     }
-                    break;
-                case 'right':
-                    if (index == edges.length - 1) {
-                        edges.push(edge);
-                    } else {
-                        this.mix(edges, index + 1, edge);
-                    }
-                default://cross
-                    //需要根据条件往数组中间插入若干值(好像没有完美的数据结构同时完成随机插入和随机取数)
-                    let crossProduct = this.corss(first, edge);
-                    let leftSurplus = false;
-                    let rightSurplus = false;
-                    if (first.e < edge.e) {//求交之后还剩余一部分right,需要把right继续混合
-                        leftSurplus = true;
-                    }
-                    if (first.s > edge.s) {//求交之后剩余一部分left，需要向前继续混合
-                        rightSurplus = true;
-                    }
-                    if (!leftSurplus && !rightSurplus) {
-                        edges.splice(index, 1, ...crossProduct);//移除原来的元素，并且把交集结果放到原来的位置
-                    } else if (!leftSurplus && rightSurplus) {
-                        edges.splice(index, 1, ...crossProduct.slice(0, crossProduct.length - 1));//移除原来的元素，并且把交集结果放到原来的位置
-                        this.mix(edges, index + crossProduct.length - 1, crossProduct[crossProduct.length - 1]);//把余下的内容向后求交
-                    } else if (leftSurplus && !rightSurplus) {
-                        edges.splice(index, 1, ...crossProduct.slice(1, crossProduct.length));//移除原来的元素，并且把交集结果放到原来的位置
-                        this.mix(edges, index - 1, crossProduct[0]);//把余下的内容向前求交
-                    } else if (leftSurplus && rightSurplus) {
-                        //这种前后都有的情况需要好好想一下index
-                    }
-                    break;
+                }
             }
         }
     }
     //要求a,b必须有交集，否则计算会出错
-    public static corss(a: Edge, b: Edge): Edge[] {
+    private static mix2Edge(a: Edge, b: Edge): Edge[] {
+        if (this.locationTest(a, b) != 'cross') {
+            throw `a,b区间没有交集`;
+        }
         let ret: Edge[];
         let arr = [a, b].sort((a, b) => {
             if (a.s != b.s) {
@@ -180,7 +187,87 @@ export class EdgeTools {
             return 'cross';
         }
     }
+    /**
+     * 这里和数学上的并集略有不同，如果闭区间[1,5] union [6,10] 结果为[1,10],因为这里用的是离散点，都是整数
+     * 不保留原来的target
+     * @param combined 
+     * @param edges 
+     */
+    public static union(combined: Edge[], edges: Edge[]) {
+        if (combined.length != 0) {
+            throw `参数错误，combined必须是空集合`;
+        }
+        for (; edges.length != 0;) {
+            let edge = edges.shift()!;
+            if (combined.length == 0) {
+                combined.push(edge.clone(false));
+            } else {
+                if (this.locationTest(combined[combined.length - 1], edge) == 'right' && !this.canUnion(combined[combined.length - 1], edge)) {
+                    combined.push(edge.clone(false));
+                }
+                else {
+                    for (let i = 0; i < combined.length; i++) {
+                        let reference = combined[i];
+                        let canUnion = this.canUnion(reference, edge);
+                        if (canUnion) {
+                            edges.unshift(new Edge(Math.min(reference.s, edge.s), Math.max(reference.e, edge.e)));
+                            combined.splice(i, 1);
+                            break;
+                        } else {
+                            let loc = this.locationTest(reference, edge);
+                            if (loc == 'left') {
+                                //可以插入当前位置
+                                combined.splice(i, 0, edge.clone(false));
+                                break;
+                            } else {
+                                //右侧不用管，等待下一个节点的判断
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    private static canUnion(a: Edge, b: Edge): boolean {
+        let loc = this.locationTest(a, b);
+        let canCross = false;
+        if (loc == 'left') {
+            if (b.e == a.s - 1) {
+                canCross = true;
+            }
+        } else if (loc == 'right') {
+            if (b.s == a.e + 1) {
+                canCross = true;
+            }
+        } else {
+            canCross = true;
+        }
+        return canCross;
+    }
+    /**
+     * 不保留原来的target
+     * @param a 
+     * @param b 
+     * @returns 
+     */
     public static reverse(edges: Edge[]): Edge[] {
-        throw `unimpliment`;
+        let ret: Edge[] = [];
+        let unionRet: Edge[] = [];
+        this.union(unionRet, edges);
+        if (unionRet[0].s > 0) {
+            ret.push(new Edge(0, unionRet[0].s - 1));
+        }
+
+        //寻找每一个空洞
+        for (let i = 0; i < unionRet.length - 1; i++) {
+            let a = unionRet[i];
+            let b = unionRet[i + 1];
+            ret.push(new Edge(a.e + 1, b.s - 1));
+        }
+
+        if (unionRet[unionRet.length - 1].e < Number.MAX_SAFE_INTEGER) {
+            ret.push(new Edge(unionRet[unionRet.length - 1].e + 1, Number.MAX_SAFE_INTEGER));
+        }
+        return ret;
     }
 }
