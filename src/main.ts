@@ -1,5 +1,4 @@
 import { FiniteAutomaton, State } from "./automaton.js";
-import { Edge, EdgeTools } from "./edge.js";
 import { LexerForREG } from "./lexer.js";
 import Parse from "./parser.js";
 function main() {
