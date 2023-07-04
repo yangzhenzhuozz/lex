@@ -6,9 +6,12 @@ function main() {
         ['\\.', (str) => { return str; }],
         ['[a-z]', (str) => { return str; }]
     ];
-    let lexer = new Lexer(lexRule);
+    let EOF = () => { return '文件结束'; };
+    let lexer = new Lexer(lexRule, EOF);
     lexer.source = `1.a`;
     lexer.compiler();
+    console.log(lexer.test());
+    console.log(lexer.test());
     console.log(lexer.test());
     console.log(lexer.test());
     console.log(lexer.test());

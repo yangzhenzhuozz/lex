@@ -7,8 +7,10 @@ export default class Lexer {
     private nfa: FiniteAutomaton | undefined;
     private idx = 0;
     public source: string = '';
-    constructor(rule: [string, (text: string) => any][]) {
+    public endOfFile: (() => any);
+    constructor(rule: [string, (text: string) => any][], EOF: (() => any)) {
         this.rule = rule;
+        this.endOfFile = EOF;
     }
     public compiler(): void {
         let nfas: FiniteAutomaton[] = [];
@@ -29,6 +31,9 @@ export default class Lexer {
         this.nfa = new FiniteAutomaton(start, end);
     }
     public test() {
+        if (this.idx >= this.source.length) {
+            return this.endOfFile();
+        }
         if (this.nfa == undefined) {
             throw `has not compiled`;
         }
