@@ -1,10 +1,16 @@
-import { FiniteAutomaton, State } from "./automaton.js";
-import { LexerForREG } from "./lexer.js";
-import Parse from "./parser.js";
+import Lexer from "./lexer/lexer.js";
 function main() {
-    let lexer = new LexerForREG('[^0-5]');
-    let nfa = Parse(lexer) as FiniteAutomaton;
-    let ret = nfa.test('6');
-    console.log(ret);
+    let lexRule: [string, (text: string) => any][] = [
+        ['[0-9]\\.[0-9]', (str) => { return str; }],
+        ['[0-9]', (str) => { return str; }],
+        ['\\.', (str) => { return str; }],
+        ['[a-z]', (str) => { return str; }]
+    ];
+    let lexer = new Lexer(lexRule);
+    lexer.source = `1.a`;
+    lexer.compiler();
+    console.log(lexer.test());
+    console.log(lexer.test());
+    console.log(lexer.test());
 }
 main();

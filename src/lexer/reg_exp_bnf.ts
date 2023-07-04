@@ -1,6 +1,6 @@
 import fs from "fs";
-import { Grammar } from "./tscc.js";
-import TSCC from "./tscc.js";
+import { Grammar } from "../tscc.js";
+import TSCC from "../tscc.js";
 import { Edge, EdgeTools } from "./edge.js";
 import { State, FiniteAutomaton } from "./automaton.js";
 let grammar: Grammar = {
@@ -207,4 +207,4 @@ import { State, FiniteAutomaton } from "./automaton.js";
 };
 let tscc = new TSCC(grammar, { language: "zh-cn", debug: false });
 let str = tscc.generate();//构造编译器代码
-fs.writeFileSync('./src/parser.ts', str!);
+fs.writeFileSync('./src/lexer/parser.ts', str!);

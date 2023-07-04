@@ -1,5 +1,4 @@
-import { State } from "./automaton";
-import { assert } from "./util";
+import { State } from "./automaton.js";
 export class Edge {
     public s: number;
     public e: number;
