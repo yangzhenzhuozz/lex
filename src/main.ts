@@ -8,12 +8,13 @@ function main() {
     ];
     let EOF = () => { return '文件结束'; };
     let lexer = new Lexer(lexRule, EOF);
-    lexer.source = `1.a`;
-    lexer.compiler();
+    lexer.source = `1.a++`;
     console.log(lexer.test());
     console.log(lexer.test());
     console.log(lexer.test());
-    console.log(lexer.test());
+    let r = lexer.addRule(['\\+', (str) => { return str; }]);
+    console.log(lexer.test());//第一个+能解析，后面的解析失败
+    lexer.removeRule(r);
     console.log(lexer.test());
 }
 main();
