@@ -16,6 +16,12 @@ export class FiniteAutomaton {
         this.start = s;
         this.end = e;
     }
+    /**
+     * 改用DFA后可以超级加速(先将就用着吧)
+     * @param str 
+     * @param start 
+     * @returns 
+     */
     public test(str: string, start: number): { rule: (text: string) => any, text: string } | undefined {
         let nowStateSet: Set<State> = new Set([this.start]);
         this.closure(nowStateSet);
